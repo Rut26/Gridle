@@ -1,8 +1,40 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
+import { registerSchema } from '@/lib/validations';
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/response';
+import { authRateLimit, withErrorHandling } from '@/lib/rateLimiter';
+import { withValidation } from '@/lib/middleware';
 
-export async function POST(request) {
+const handler = withErrorHandling(withValidation(registerSchema)(async (request) => {
+  const { name, email, password } = request.validatedData;
+
+  await connectDB();
+
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return errorResponse('User already exists with this email', 400);
+  }
+
+  // Create new user
+  const user = await User.create({
+    name,
+    email,
+    password,
+  });
+
+  // Remove password from response
+  const { password: _, ...userWithoutPassword } = user.toObject();
+
+  return successResponse(
+    { user: userWithoutPassword },
+    'User created successfully',
+    201
+  );
+}));
+
+export const POST = authRateLimit(handler);
   try {
     const { name, email, password } = await request.json();
 

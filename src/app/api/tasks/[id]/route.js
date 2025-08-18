@@ -1,98 +1,57 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import Task from '@/models/Task';
-import { auth } from '@/auth';
+import { updateTaskSchema } from '@/lib/validations';
+import { successResponse, errorResponse, notFoundResponse } from '@/lib/response';
+import { withAuth, withValidation, withErrorHandling } from '@/lib/middleware';
+import { apiRateLimit } from '@/lib/rateLimiter';
 
-export async function GET(request, { params }) {
-  try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+const getHandler = withErrorHandling(withAuth(async (request, { params }) => {
+  const task = await Task.findOne({ 
+    _id: params.id, 
+    userId: request.session.user.id 
+  })
+  .populate('projectId', 'name')
+  .populate('groupId', 'name');
 
-    await connectDB();
-
-    const task = await Task.findOne({ 
-      _id: params.id, 
-      userId: session.user.id 
-    })
-    .populate('projectId', 'name')
-    .populate('groupId', 'name');
-
-    if (!task) {
-      return NextResponse.json({ message: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(task);
-
-  } catch (error) {
-    console.error('Get task error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!task) {
+    return notFoundResponse('Task not found');
   }
-}
 
-export async function PUT(request, { params }) {
-  try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  return successResponse(task);
+}));
 
-    const data = await request.json();
-    
-    await connectDB();
+const putHandler = withErrorHandling(withAuth(withValidation(updateTaskSchema)(async (request, { params }) => {
+  const updateData = request.validatedData;
+  
+  const task = await Task.findOneAndUpdate(
+    { _id: params.id, userId: request.session.user.id },
+    updateData,
+    { new: true, runValidators: true }
+  )
+  .populate('projectId', 'name')
+  .populate('groupId', 'name');
 
-    const task = await Task.findOneAndUpdate(
-      { _id: params.id, userId: session.user.id },
-      data,
-      { new: true, runValidators: true }
-    )
-    .populate('projectId', 'name')
-    .populate('groupId', 'name');
-
-    if (!task) {
-      return NextResponse.json({ message: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(task);
-
-  } catch (error) {
-    console.error('Update task error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!task) {
+    return notFoundResponse('Task not found');
   }
-}
 
-export async function DELETE(request, { params }) {
-  try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  return successResponse(task, 'Task updated successfully');
+})));
 
-    await connectDB();
+const deleteHandler = withErrorHandling(withAuth(async (request, { params }) => {
+  const task = await Task.findOneAndDelete({ 
+    _id: params.id, 
+    userId: request.session.user.id 
+  });
 
-    const task = await Task.findOneAndDelete({ 
-      _id: params.id, 
-      userId: session.user.id 
-    });
-
-    if (!task) {
-      return NextResponse.json({ message: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: 'Task deleted successfully' });
-
-  } catch (error) {
-    console.error('Delete task error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!task) {
+    return notFoundResponse('Task not found');
   }
-}
+
+  return successResponse(null, 'Task deleted successfully');
+}));
+
+export const GET = apiRateLimit(getHandler);
+export const PUT = apiRateLimit(putHandler);
+export const DELETE = apiRateLimit(deleteHandler);

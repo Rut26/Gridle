@@ -1,51 +1,63 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
-import { auth } from '@/auth';
+import { successResponse, errorResponse } from '@/lib/response';
+import { withAdminAuth, withErrorHandling } from '@/lib/middleware';
+import { strictRateLimit } from '@/lib/rateLimiter';
 
-export async function GET(request) {
-  try {
-    const session = await auth();
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+const getHandler = withErrorHandling(withAdminAuth(async (request) => {
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('search');
+  const page = parseInt(searchParams.get('page')) || 1;
+  const limit = parseInt(searchParams.get('limit')) || 10;
+  const role = searchParams.get('role');
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 10;
+  let query = {};
 
-    await connectDB();
-
-    let query = {};
-
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await User.countDocuments(query);
-
-    return NextResponse.json({
-      users,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
-    });
-
-  } catch (error) {
-    console.error('Get users error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } }
+    ];
   }
-}
+
+  if (role) {
+    query.role = role;
+  }
+
+  const users = await User.find(query)
+    .select('-password -resetPasswordToken')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip((page - 1) * limit);
+
+  const total = await User.countDocuments(query);
+
+  // Get user statistics
+  const stats = await User.aggregate([
+    {
+      $group: {
+        _id: '$role',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const userStats = stats.reduce((acc, stat) => {
+    acc[stat._id] = stat.count;
+    return acc;
+  }, {});
+
+  return successResponse({
+    users,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+    stats: userStats,
+  });
+}));
+
+export const GET = strictRateLimit(getHandler);

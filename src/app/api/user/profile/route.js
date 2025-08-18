@@ -1,62 +1,37 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/models/User';
-import { auth } from '@/auth';
+import { updateProfileSchema } from '@/lib/validations';
+import { successResponse, errorResponse, notFoundResponse } from '@/lib/response';
+import { withAuth, withValidation, withErrorHandling } from '@/lib/middleware';
+import { apiRateLimit } from '@/lib/rateLimiter';
 
-export async function GET(request) {
-  try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+const getHandler = withErrorHandling(withAuth(async (request) => {
+  const user = await User.findById(request.session.user.id)
+    .select('-password -resetPasswordToken');
 
-    await connectDB();
-
-    const user = await User.findById(session.user.id).select('-password');
-
-    if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(user);
-
-  } catch (error) {
-    console.error('Get profile error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!user) {
+    return notFoundResponse('User not found');
   }
-}
 
-export async function PUT(request) {
-  try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+  return successResponse(user);
+}));
 
-    const data = await request.json();
-    
-    await connectDB();
+const putHandler = withErrorHandling(withAuth(withValidation(updateProfileSchema)(async (request) => {
+  const updateData = request.validatedData;
+  
+  const user = await User.findByIdAndUpdate(
+    request.session.user.id,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  ).select('-password -resetPasswordToken');
 
-    const user = await User.findByIdAndUpdate(
-      session.user.id,
-      { $set: data },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(user);
-
-  } catch (error) {
-    console.error('Update profile error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!user) {
+    return notFoundResponse('User not found');
   }
-}
+
+  return successResponse(user, 'Profile updated successfully');
+})));
+
+export const GET = apiRateLimit(getHandler);
+export const PUT = apiRateLimit(putHandler);
