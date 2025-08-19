@@ -2,19 +2,15 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 // Correct import path for PlusIcon from components/ui/ClientLayout
 import { PlusIcon } from '../../components/ui/ClientLayout'; 
 import { HiMicrophone } from 'react-icons/hi'; // For voice input icon
 
 const TasksPage = () => {
-  const [tasks, setTasks] = useState([
-    { id: '1', name: 'Review project proposal', dueDate: '2025-07-26', priority: 'High', category: 'Work', status: 'pending', aiSuggested: true, projectId: 'p1' },
-    { id: '2', name: 'Call John for meeting', dueDate: '2025-07-27', priority: 'Medium', category: 'Personal', status: 'pending', aiSuggested: false, projectId: 'p2' },
-    { id: '3', name: 'Research AI libraries', dueDate: '2025-07-28', priority: 'High', category: 'Project', status: 'pending', aiSuggested: true, projectId: 'p1' },
-    { id: '4', name: 'Buy groceries', dueDate: '2025-07-25', priority: 'Low', category: 'Personal', status: 'completed', aiSuggested: false, projectId: 'p2' },
-    { id: '5', name: 'Plan weekend trip', dueDate: '2025-07-29', priority: 'Medium', category: 'Personal', status: 'pending', aiSuggested: false, projectId: 'p3' },
-    { id: '6', name: 'Update documentation', dueDate: '2025-08-01', priority: 'Low', category: 'Work', status: 'pending', aiSuggested: true, projectId: 'p1' },
-  ]);
+  const { data: session } = useSession();
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -48,6 +44,34 @@ const TasksPage = () => {
     { id: 'p3', name: 'Internal Operations' },
   ];
 
+  // Fetch tasks from API
+  useEffect(() => {
+    if (session) {
+      fetchTasks();
+    }
+  }, [session]);
+
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch('/api/tasks');
+      const data = await response.json();
+      if (data.success) {
+        setTasks(data.data.tasks || []);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">Loading tasks...</p>
+      </div>
+    );
+  }
 
   const getPriorityColorClasses = (priority) => {
     switch (priority.toLowerCase()) {
@@ -59,11 +83,20 @@ const TasksPage = () => {
   };
 
   const handleToggleTaskStatus = (id) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === id ? { ...task, status: task.status === 'completed' ? 'pending' : 'completed' } : task
+    const task = tasks.find(t => t._id === id);
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    
+    fetch(`/api/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    }).then(() => {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task._id === id ? { ...task, status: newStatus } : task
+        )
       )
-    );
+    });
   };
 
   const openTaskModal = (task = null) => {

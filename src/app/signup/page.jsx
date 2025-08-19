@@ -1,47 +1,57 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 
 export default function SignUpForm() {
-  // ✅ State for user input
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Function to handle signup
   const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       setError("Passwords do not match!");
+      setIsLoading(false);
       return;
     }
 
-    const res = await fetch("http://localhost:5000/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
-      window.location.href = "/signin"; // ✅ Redirect to sign-in page
-    } else {
-      setError(data.message || "An error occurred. Please try again."); // ❌ Show error message
+      if (data.success) {
+        router.push("/signin");
+      } else {
+        setError(data.error || "Registration failed. Please try again.");
+      }
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
+    signIn('google', { callbackUrl: '/dashboard' });
   };
 
   return (
@@ -56,7 +66,7 @@ export default function SignUpForm() {
         </div>
 
         <form className="space-y-4" onSubmit={handleSignup}>
-          {error && <p className="text-red-500 text-center">{error}</p>} {/* ❌ Show error message */}
+          {error && <p className="text-red-500 text-center">{error}</p>}
 
           <div className="relative">
             <Input 
@@ -118,7 +128,11 @@ export default function SignUpForm() {
             </Label>
           </div>
 
-          <Button type="submit" className="w-full h-[52px] bg-[#1E3A8A] hover:bg-[#3B82F6] text-white font-bold text-base rounded-full">
+          <Button 
+            type="submit" 
+            className="w-full h-[52px] bg-[#1E3A8A] hover:bg-[#3B82F6] text-white font-bold text-base rounded-full"
+            disabled={isLoading}
+          >
             Sign up
           </Button>
         </form>

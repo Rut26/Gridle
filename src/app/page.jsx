@@ -1,31 +1,34 @@
 // src/app/page.jsx
 "use client";
 
+import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function HomePage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // This effect ensures we only act when directly at the root path '/'
+    if (status === 'loading') return; // Still loading
+    
     if (pathname === '/') {
-      const token = localStorage.getItem('gridle_auth_token'); // Check for authentication token
-      
-      let destinationPath;
-      if (token) {
-        destinationPath = '/dashboard'; // If authenticated, go to dashboard
+      if (session) {
+        router.replace('/dashboard');
       } else {
-        destinationPath = '/signin'; // If not authenticated, go to sign-in
-      }
-
-      // Only redirect if we are currently at '/' AND not already trying to go to '/'
-      if (pathname !== destinationPath) {
-        router.replace(destinationPath);
+        router.replace('/signin');
       }
     }
-  }, [router, pathname]);
+  }, [session, status, router, pathname]);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center text-foreground">

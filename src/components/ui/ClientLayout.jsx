@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HiHome, HiClipboardList, HiDocumentText, HiUserGroup, HiCog, HiShieldCheck, HiChevronLeft, HiChevronRight, HiPlus, HiUserCircle } from "react-icons/hi";
@@ -25,6 +26,7 @@ const sidebarNavItems = [
 ];
 
 const ClientLayout = ({ children, isAdmin = false }) => {
+  const { data: session } = useSession();
   const pathname = usePathname();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -49,6 +51,11 @@ const ClientLayout = ({ children, isAdmin = false }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [dropdownRef]);
+
+  const handleLogout = async () => {
+    setShowProfileDropdown(false);
+    await signOut({ callbackUrl: '/signin' });
+  };
 
   const getCurrentPageTitle = () => {
     const activeItem = sidebarNavItems.find(item => pathname.startsWith(item.path));
@@ -147,7 +154,7 @@ const ClientLayout = ({ children, isAdmin = false }) => {
                   <Link href="/settings" className="block px-4 py-2 text-foreground hover:bg-muted transition-colors" onClick={() => setShowProfileDropdown(false)}>
                     Edit Profile
                   </Link>
-                  <button onClick={() => { console.log('Logging out...'); setShowProfileDropdown(false); }} className="w-full text-left px-4 py-2 text-destructive hover:bg-muted transition-colors">
+                  <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-destructive hover:bg-muted transition-colors">
                     Log Out
                   </button>
                 </div>

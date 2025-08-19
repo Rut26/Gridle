@@ -2,15 +2,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 import { PlusIcon } from '../../components/ui/ClientLayout'; 
 
 const GroupsPage = () => {
-  const [groups, setGroups] = useState([
-    { id: 'g1', name: 'Marketing Team Q3 Campaign', members: 5, tasks: 12, isCurrentUserAdmin: true, description: 'Planning and execution for the Q3 marketing initiatives.' },
-    { id: 'g2', name: 'Product Feature Alpha Testing', members: 8, tasks: 20, isCurrentUserAdmin: false, description: 'Testing new features for upcoming product releases.' },
-    { id: 'g3', name: 'HR Onboarding Improvement', members: 3, tasks: 5, isCurrentUserAdmin: true, description: 'Improving the new employee onboarding experience.' },
-    { id: 'g4', name: 'Website Redesign Project', members: 6, tasks: 15, isCurrentUserAdmin: false, description: 'Revamping the company website design and content.' },
-  ]);
+  const { data: session } = useSession();
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -19,6 +18,28 @@ const GroupsPage = () => {
   const [groupJoinCode, setGroupJoinCode] = useState('');
   const [isSubmittingGroupAction, setIsSubmittingGroupAction] = useState(false);
 
+  // Fetch groups from API
+  useEffect(() => {
+    if (session) {
+      fetchGroups();
+    }
+  }, [session]);
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch('/api/groups');
+      const data = await response.json();
+      if (data.success) {
+        setGroups(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-full"><p>Loading groups...</p></div>;
 
   const openGroupModal = (isCreate = true) => {
     setIsCreatingGroup(isCreate);
@@ -32,40 +53,53 @@ const GroupsPage = () => {
     setIsSubmittingGroupAction(true);
     try {
       if (isCreatingGroup) {
-        if (!groupFormName) { alert('Group name is required.'); return; }
-        const newGroupId = `g${groups.length + 1}`;
-        await new Promise(resolve => setTimeout(() => {
-          setGroups(prev => [...prev, { id: newGroupId, name: groupFormName, members: 1, tasks: 0, isCurrentUserAdmin: true, description: `New group: ${groupFormName}` }]);
+        const response = await fetch('/api/groups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name: groupFormName,
+            description: `New group: ${groupFormName}`
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setGroups(prev => [...prev, data.data]);
           alert(`Group "${groupFormName}" created!`);
-          resolve();
-        }, 1000));
+        } else {
+          alert(data.error || 'Failed to create group');
+        }
       } else { // Joining group
-        if (!groupJoinCode) { alert('Join code is required.'); return; }
-        await new Promise(resolve => setTimeout(() => {
-          const foundGroup = dummyGroups.find(g => g.id === groupJoinCode);
-          if (foundGroup) {
-            setGroups(prev => {
-              if (!prev.some(g => g.id === foundGroup.id)) {
-                return [...prev, { ...foundGroup, members: foundGroup.members + 1 }];
-              }
-              return prev;
-            });
-            alert(`Joined group "${foundGroup.name}"!`);
+        const response = await fetch('/api/groups/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ joinCode: groupJoinCode }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setGroups(prev => {
+            if (!prev.some(g => g._id === data.data._id)) {
+              return [...prev, data.data];
+            }
+            return prev;
+          });
+          alert(`Joined group "${data.data.name}"!`);
           } else {
-            alert('Invalid group code.');
+          alert(data.error || 'Failed to join group');
           }
-          resolve();
-        }, 1000));
       }
       setShowGroupModal(false);
+    } catch (error) {
+      alert('An error occurred. Please try again.');
     } finally {
       setIsSubmittingGroupAction(false);
     }
   };
 
   const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    group.description.toLowerCase().includes(searchQuery.toLowerCase())
+    group.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

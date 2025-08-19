@@ -1,8 +1,9 @@
 // src/app/signin/page.jsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function SignInPage() {
@@ -12,39 +13,35 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // Redirect if already signed in
-  useEffect(() => {
-    const token = localStorage.getItem('gridle_auth_token');
-    if (token) {
-      router.replace('/dashboard');
-    }
-  }, [router]);
-
-
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      const response = await new Promise(resolve => setTimeout(() => {
-        if (email === 'test@example.com' && password === 'password123') {
-          resolve({ success: true, token: 'dummy_jwt_token_123' });
-        } else {
-          resolve({ success: false, message: 'Invalid credentials. Try test@example.com / password123' });
-        }
-      }, 1500));
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-      if (response.success) {
-        localStorage.setItem('gridle_auth_token', response.token);
+      if (result?.ok) {
         router.push('/dashboard');
       } else {
-        setError(response.message);
+        setError('Invalid credentials. Please try again.');
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn('google', { callbackUrl: '/dashboard' });
+    } catch (error) {
+      setError('Google sign-in failed. Please try again.');
     }
   };
 
@@ -90,7 +87,7 @@ export default function SignInPage() {
           <span className="px-3 text-muted-foreground">OR</span>
           <hr className="flex-grow border-border" />
         </div>
-        <button className="w-full flex items-center justify-center p-3 border border-border rounded-lg text-foreground font-semibold hover:bg-muted/50 transition-colors duration-200">
+        <button onClick={handleGoogleSignIn} className="w-full flex items-center justify-center p-3 border border-border rounded-lg text-foreground font-semibold hover:bg-muted/50 transition-colors duration-200">
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.284V13.784H17.474C17.384 14.374 17.064 15.174 16.514 15.934C15.964 16.694 15.224 17.304 14.354 17.764L14.334 17.794L17.794 20.444C17.714 20.554 17.634 20.664 17.544 20.764C16.574 21.604 15.344 22.254 14.004 22.654C12.664 23.054 11.264 23.254 9.804 23.254C6.184 23.254 3.164 21.904 0.994 19.144L0.964 19.114L0.864 19.014L3.894 16.644C4.544 17.074 5.374 17.354 6.364 17.514C7.354 17.674 8.444 17.754 9.614 17.754C11.524 17.754 13.064 17.304 14.284 16.394L14.364 16.334C15.194 15.744 15.864 14.974 16.364 14.074C16.864 13.174 17.184 12.164 17.304 11.084L17.334 11.014L12.24 10.284Z" fill="#EA4335"/><path d="M23.084 11.084L23.054 10.974L23.084 11.084Z" fill="#FBBC04"/><path d="M0 12.004C0 12.824 0.08 13.624 0.23 14.394C0.29 14.674 0.38 14.954 0.49 15.224L3.48 12.924L3.46 12.904C3.21 12.354 3.09 11.754 3.09 11.134C3.09 10.514 3.21 9.914 3.46 9.364L0.49 7.064C0.38 7.334 0.29 7.614 0.23 7.894C0.08 8.664 0 9.464 0 10.284V12.004Z" fill="#4285F4"/><path d="M23.084 11.084C23.084 11.084 23.084 11.084 23.084 11.084V11.084Z" fill="#34A853"/></svg>
           Sign in with Google
         </button>

@@ -2,16 +2,15 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 import { PlusIcon } from '../../components/ui/ClientLayout'; 
 import { HiMicrophone } from 'react-icons/hi'; // For voice input icon
 
 const NotesPage = () => {
-  const [notes, setNotes] = useState([
-    { id: 1, title: 'Meeting with Client X', content: 'Discussed project scope, deliverables, and timeline. Agreed on next steps for UI/UX review and backend API integration. Follow up on Monday.', date: '2025-07-20' },
-    { id: 2, title: 'Brainstorming - AI Features', content: 'Ideas for advanced AI integrations: sentiment analysis on task descriptions, predictive resource allocation, self-learning task categorization.', date: '2025-07-18' },
-    { id: 3, title: 'Personal Reminders', content: 'Remember to pick up dry cleaning by 6 PM. Call dentist for appointment confirmation.', date: '2025-07-22' },
-    { id: 4, title: 'Project Gridle Requirements', content: 'Need to clarify authentication flows and ensure all AI features have clear user touchpoints. Also, define admin panel permissions precisely.', date: '2025-07-23' },
-  ]);
+  const { data: session } = useSession();
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -21,6 +20,28 @@ const NotesPage = () => {
   const [noteFormContent, setNoteFormContent] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
 
+  // Fetch notes from API
+  useEffect(() => {
+    if (session) {
+      fetchNotes();
+    }
+  }, [session]);
+
+  const fetchNotes = async () => {
+    try {
+      const response = await fetch('/api/notes');
+      const data = await response.json();
+      if (data.success) {
+        setNotes(data.data.notes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-full"><p>Loading notes...</p></div>;
 
   const openNoteModal = (note = null) => {
     if (note) {
@@ -40,59 +61,62 @@ const NotesPage = () => {
   const handleSaveNote = async (e) => {
     e.preventDefault();
     setIsSavingNote(true);
+    
     try {
       if (isEditingNote) {
-        const response = await new Promise(resolve => setTimeout(() => {
-          if (noteFormTitle && noteFormContent) {
-            resolve({ success: true, note: {
-              ...currentNoteToEdit,
-              title: noteFormTitle,
-              content: noteFormContent,
-              date: new Date().toLocaleDateString('en-IN'), // Update date on edit
-            }});
-          } else {
-            resolve({ success: false, message: 'Note title and content are required.' });
-          }
-        }, 1000));
-        if (response.success) {
-          setNotes(prevNotes => prevNotes.map(n => n.id === response.note.id ? response.note : n));
+        const response = await fetch(`/api/notes/${currentNoteToEdit._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: noteFormTitle,
+            content: noteFormContent,
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setNotes(prevNotes => prevNotes.map(n => n._id === data.data._id ? data.data : n));
           alert('Note updated successfully!');
         } else {
-          alert(response.message);
+          alert(data.error || 'Failed to update note');
         }
       } else {
-        const response = await new Promise(resolve => setTimeout(() => {
-          if (noteFormTitle && noteFormContent) {
-            resolve({ success: true, note: {
-              id: notes.length + 1,
-              title: noteFormTitle,
-              content: noteFormContent,
-              date: new Date().toLocaleDateString('en-IN'),
-            }});
-          } else {
-            resolve({ success: false, message: 'Note title and content are required.' });
-          }
-        }, 1000));
-        if (response.success) {
-          setNotes(prevNotes => [...prevNotes, response.note]);
+        const response = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: noteFormTitle,
+            content: noteFormContent,
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setNotes(prevNotes => [...prevNotes, data.data]);
           alert('Note added successfully!');
         } else {
-          alert(response.message);
+          alert(data.error || 'Failed to create note');
         }
       }
       setShowNoteModal(false);
+    } catch (error) {
+      alert('An error occurred. Please try again.');
     } finally {
       setIsSavingNote(false);
     }
   };
 
   const handleDeleteNote = (noteId) => {
-    if (window.confirm(`Are you sure you want to delete note "${notes.find(n => n.id === noteId)?.title}"?`)) {
-      new Promise(resolve => setTimeout(() => {
-        setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
-        alert(`Note "${notes.find(n => n.id === noteId)?.title}" deleted.`);
-        resolve();
-      }, 500));
+    const note = notes.find(n => n._id === noteId);
+    if (window.confirm(`Are you sure you want to delete note "${note?.title}"?`)) {
+      fetch(`/api/notes/${noteId}`, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            setNotes(prevNotes => prevNotes.filter(note => note._id !== noteId));
+            alert('Note deleted successfully!');
+          }
+        });
     }
   };
 

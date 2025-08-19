@@ -1,4 +1,5 @@
 // src/app/layout.js
+import { SessionProvider } from 'next-auth/react';
 import { Albert_Sans } from 'next/font/google';
 import './globals.css';
 import ClientLayout from '../components/ui/ClientLayout'; // Correct path based on your request
@@ -20,9 +21,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${albertSans.variable}`}>
       <body>
-        <ClientLayout isAdmin={isAdminUser}>
-          {children}
-        </ClientLayout>
+        <SessionProvider>
+          <ClientLayout isAdmin={isAdminUser}>
+            {children}
+          </ClientLayout>
+        </SessionProvider>
       </body>
     </html>
   );
