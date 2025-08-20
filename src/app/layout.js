@@ -3,6 +3,8 @@ import { SessionProvider } from 'next-auth/react';
 import { Albert_Sans } from 'next/font/google';
 import './globals.css';
 import ClientLayout from '../components/ui/ClientLayout'; // Correct path based on your request
+import { Toaster } from '@/components/ui/toaster';
+import ErrorBoundary from '@/components/ui/error-boundary';
 
 const albertSans = Albert_Sans({
   subsets: ['latin'],
@@ -21,11 +23,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${albertSans.variable}`}>
       <body>
-        <SessionProvider>
-          <ClientLayout isAdmin={isAdminUser}>
-            {children}
-          </ClientLayout>
-        </SessionProvider>
+        <ErrorBoundary>
+          <SessionProvider>
+            <ClientLayout isAdmin={isAdminUser}>
+              {children}
+            </ClientLayout>
+            <Toaster />
+          </SessionProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

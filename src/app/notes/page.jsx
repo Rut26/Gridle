@@ -6,9 +6,12 @@ import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { PlusIcon } from '../../components/ui/ClientLayout'; 
 import { HiMicrophone } from 'react-icons/hi'; // For voice input icon
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 const NotesPage = () => {
   const { data: session } = useSession();
+  const { toast } = useToast();
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +44,18 @@ const NotesPage = () => {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full"><p>Loading notes...</p></div>;
+  if (loading) {
+    return (
+      <div className="relative h-full flex flex-col space-y-6">
+        <Skeleton className="h-12 w-full" />
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   const openNoteModal = (note = null) => {
     if (note) {
@@ -76,9 +90,16 @@ const NotesPage = () => {
         
         if (data.success) {
           setNotes(prevNotes => prevNotes.map(n => n._id === data.data._id ? data.data : n));
-          alert('Note updated successfully!');
+          toast({
+            title: "Success",
+            description: "Note updated successfully!",
+          });
         } else {
-          alert(data.error || 'Failed to update note');
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to update note',
+            variant: "destructive",
+          });
         }
       } else {
         const response = await fetch('/api/notes', {
@@ -93,14 +114,25 @@ const NotesPage = () => {
         
         if (data.success) {
           setNotes(prevNotes => [...prevNotes, data.data]);
-          alert('Note added successfully!');
+          toast({
+            title: "Success",
+            description: "Note added successfully!",
+          });
         } else {
-          alert(data.error || 'Failed to create note');
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to create note',
+            variant: "destructive",
+          });
         }
       }
       setShowNoteModal(false);
     } catch (error) {
-      alert('An error occurred. Please try again.');
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSavingNote(false);
     }
@@ -114,7 +146,10 @@ const NotesPage = () => {
         .then(data => {
           if (data.success) {
             setNotes(prevNotes => prevNotes.filter(note => note._id !== noteId));
-            alert('Note deleted successfully!');
+            toast({
+              title: "Success",
+              description: "Note deleted successfully!",
+            });
           }
         });
     }

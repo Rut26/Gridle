@@ -5,9 +5,12 @@ import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { PlusIcon } from '../../components/ui/ClientLayout'; 
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 const GroupsPage = () => {
   const { data: session } = useSession();
+  const { toast } = useToast();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +42,18 @@ const GroupsPage = () => {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full"><p>Loading groups...</p></div>;
+  if (loading) {
+    return (
+      <div className="relative h-full flex flex-col space-y-6">
+        <Skeleton className="h-12 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   const openGroupModal = (isCreate = true) => {
     setIsCreatingGroup(isCreate);
@@ -65,9 +79,16 @@ const GroupsPage = () => {
         
         if (data.success) {
           setGroups(prev => [...prev, data.data]);
-          alert(`Group "${groupFormName}" created!`);
+          toast({
+            title: "Success",
+            description: `Group "${groupFormName}" created!`,
+          });
         } else {
-          alert(data.error || 'Failed to create group');
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to create group',
+            variant: "destructive",
+          });
         }
       } else { // Joining group
         const response = await fetch('/api/groups/join', {
@@ -84,14 +105,25 @@ const GroupsPage = () => {
             }
             return prev;
           });
-          alert(`Joined group "${data.data.name}"!`);
+          toast({
+            title: "Success",
+            description: `Joined group "${data.data.name}"!`,
+          });
           } else {
-          alert(data.error || 'Failed to join group');
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to join group',
+            variant: "destructive",
+          });
           }
       }
       setShowGroupModal(false);
     } catch (error) {
-      alert('An error occurred. Please try again.');
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmittingGroupAction(false);
     }
