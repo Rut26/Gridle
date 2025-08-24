@@ -16,6 +16,10 @@ const NoteSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  groupId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group',
+  },
   tags: [{
     type: String,
   }],

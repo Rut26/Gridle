@@ -34,6 +34,16 @@ const SettingsPage = () => {
     }
   }, [session]);
 
+  // Real-time updates when session changes
+  useEffect(() => {
+    if (session?.user) {
+      setProfile(prev => ({
+        ...prev,
+        name: session.user.name || prev.name,
+        email: session.user.email || prev.email,
+      }));
+    }
+  }, [session]);
   const fetchProfile = async () => {
     try {
       setLoading(true);
@@ -42,8 +52,8 @@ const SettingsPage = () => {
       
       if (data.success) {
         setProfile({
-          name: data.data.name || '',
-          email: data.data.email || '',
+          name: data.data.name || session?.user?.name || '',
+          email: data.data.email || session?.user?.email || '',
           preferences: {
             emailNotifications: data.data.preferences?.emailNotifications ?? true,
             popupNotifications: data.data.preferences?.popupNotifications ?? true,
@@ -93,6 +103,12 @@ const SettingsPage = () => {
           title: "Success",
           description: "Settings saved successfully!",
         });
+        
+        // Update session data if name changed
+        if (profile.name !== session?.user?.name) {
+          // Trigger session update
+          window.location.reload();
+        }
       } else {
         toast({
           title: "Error",

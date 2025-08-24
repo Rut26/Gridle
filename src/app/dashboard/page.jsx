@@ -82,11 +82,17 @@ const DashboardPage = () => {
             id: t._id
           }));
 
+        // Get overdue tasks
+        const overdueTasks = tasks.filter(t => 
+          new Date(t.dueDate) < new Date() && t.status !== 'completed'
+        ).length;
+
         setDashboardData({
           totalTasks,
           completedTasks,
           pendingTasks,
           dueTodayTasks,
+          overdueTasks,
           totalNotes: notes.length,
           totalGroups: groups.length,
           chartData,
@@ -277,10 +283,10 @@ const DashboardPage = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>Pending Tasks</CardTitle>
+            <CardTitle>Overdue Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{dashboardData?.pendingTasks || 0}</p>
+            <p className="text-3xl font-bold text-destructive">{dashboardData?.overdueTasks || 0}</p>
           </CardContent>
         </Card>
       </div>
