@@ -107,12 +107,31 @@ const TasksPage = () => {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
-    }).then(() => {
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task._id === id ? { ...task, status: newStatus } : task
-        )
-      )
+    }).then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        setTasks(prevTasks =>
+          prevTasks.map(task =>
+            task._id === id ? { ...task, status: newStatus } : task
+          )
+        );
+        toast({
+          title: "Success",
+          description: `Task marked as ${newStatus}`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update task",
+          variant: "destructive",
+        });
+      }
+    }).catch(error => {
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      });
     });
   };
 
@@ -141,50 +160,65 @@ const TasksPage = () => {
     setIsSavingTask(true);
     try {
       if (isEditingTask) {
-        const response = await new Promise(resolve => setTimeout(() => {
-          if (taskFormName && taskFormDueDate) {
-            resolve({ success: true, task: {
-              ...currentTaskToEdit,
-              name: taskFormName,
-              dueDate: taskFormDueDate,
-              priority: taskFormPriority,
-              category: taskFormCategory || 'Uncategorized',
-            }});
-          } else {
-            resolve({ success: false, message: 'Task name and due date are required.' });
-          }
-        }, 1000));
-        if (response.success) {
-          setTasks(prevTasks => prevTasks.map(t => t.id === response.task.id ? response.task : t));
-          alert('Task updated successfully!');
+        const response = await fetch(`/api/tasks/${currentTaskToEdit._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: taskFormName,
+            dueDate: new Date(taskFormDueDate).toISOString(),
+            priority: taskFormPriority,
+            category: taskFormCategory || 'Uncategorized',
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setTasks(prevTasks => prevTasks.map(t => t._id === data.data._id ? data.data : t));
+          toast({
+            title: "Success",
+            description: "Task updated successfully!",
+          });
         } else {
-          alert(response.message);
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to update task',
+            variant: "destructive",
+          });
         }
       } else {
-        const response = await new Promise(resolve => setTimeout(() => {
-          if (taskFormName && taskFormDueDate) {
-            resolve({ success: true, task: {
-              id: String(tasks.length + 1),
-              name: taskFormName,
-              dueDate: taskFormDueDate,
-              priority: taskFormPriority,
-              category: taskFormCategory || 'Uncategorized',
-              status: 'pending',
-              aiSuggested: false,
-              projectId: dummyProjects[0]?.id || null,
-            }});
-          } else {
-            resolve({ success: false, message: 'Task name and due date are required.' });
-          }
-        }, 1000));
-        if (response.success) {
-          setTasks(prevTasks => [...prevTasks, response.task]);
-          alert('Task added successfully!');
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: taskFormName,
+            dueDate: new Date(taskFormDueDate).toISOString(),
+            priority: taskFormPriority,
+            category: taskFormCategory || 'Uncategorized',
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setTasks(prevTasks => [...prevTasks, data.data]);
+          toast({
+            title: "Success",
+            description: "Task added successfully!",
+          });
         } else {
-          alert(response.message);
+          toast({
+            title: "Error",
+            description: data.error || 'Failed to create task',
+            variant: "destructive",
+          });
         }
       }
       setShowTaskModal(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSavingTask(false);
     }
@@ -192,12 +226,32 @@ const TasksPage = () => {
 
   const handleDeleteTask = (taskId) => {
     setOpenDropdownId(null);
-    if (window.confirm(`Are you sure you want to delete task "${tasks.find(t => t.id === taskId)?.name}"?`)) {
-      new Promise(resolve => setTimeout(() => {
-        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-        alert(`Task "${tasks.find(t => t.id === taskId)?.name}" deleted.`);
-        resolve();
-      }, 500));
+    const task = tasks.find(t => t._id === taskId);
+    if (window.confirm(`Are you sure you want to delete task "${task?.name}"?`)) {
+      fetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            setTasks(prevTasks => prevTasks.filter(task => task._id !== taskId));
+            toast({
+              title: "Success",
+              description: "Task deleted successfully!",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: data.error || "Failed to delete task",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch(error => {
+          toast({
+            title: "Error",
+            description: "Failed to delete task",
+            variant: "destructive",
+          });
+        });
     }
   };
 
@@ -275,11 +329,11 @@ const TasksPage = () => {
             <p className="text-center text-muted-foreground">No tasks found matching your criteria.</p>
           ) : (
             filteredTasks.map(task => (
-              <div key={task.id} className="flex items-center p-4 border border-border rounded-lg shadow-sm bg-card">
+              <div key={task._id} className="flex items-center p-4 border border-border rounded-lg shadow-sm bg-card">
                 <input
                   type="checkbox"
                   checked={task.status === 'completed'}
-                  onChange={() => handleToggleTaskStatus(task.id)}
+                  onChange={() => handleToggleTaskStatus(task._id)}
                   className="form-checkbox h-5 w-5 text-primary rounded border-border focus:ring-primary"
                 />
                 <div className="ml-4 flex-1">
@@ -287,7 +341,7 @@ const TasksPage = () => {
                     {task.name}
                   </p>
                   <p className="text-sm text-muted-foreground">Due: {task.dueDate} | Category: {task.category}
-                    {task.projectId && ` | Project: ${dummyProjects.find(p => p.id === task.projectId)?.name}`}
+                    {task.projectId && ` | Project: ${task.projectId.name || 'Unknown'}`}
                   </p>
                 </div>
                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getPriorityColorClasses(task.priority)}`}>
@@ -296,15 +350,15 @@ const TasksPage = () => {
                 </span>
 
                 <div className="relative ml-4" ref={el => dropdownRefs.current[task.id] = el}>
-                  <button onClick={() => toggleDropdown(task.id)} className="p-2 rounded-full hover:bg-muted">
+                  <button onClick={() => toggleDropdown(task._id)} className="p-2 rounded-full hover:bg-muted">
                     <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"></path></svg>
                   </button>
-                  {openDropdownId === task.id && (
+                  {openDropdownId === task._id && (
                     <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
                       <button onClick={() => openTaskModal(task)} className="block w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors">
                         Edit Task
                       </button>
-                      <button onClick={() => handleDeleteTask(task.id)} className="block w-full text-left px-4 py-2 text-destructive hover:bg-muted transition-colors">
+                      <button onClick={() => handleDeleteTask(task._id)} className="block w-full text-left px-4 py-2 text-destructive hover:bg-muted transition-colors">
                         Delete Task
                       </button>
                       <button onClick={() => handleOpenMoveToProjectModal(task)} className="block w-full text-left px-4 py-2 text-foreground hover:bg-muted transition-colors">

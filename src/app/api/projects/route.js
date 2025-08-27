@@ -15,12 +15,12 @@ export async function GET(request) {
     const projects = await Project.find({ userId: session.user.id })
       .sort({ createdAt: -1 });
 
-    return NextResponse.json(projects);
+    return NextResponse.json({ success: true, data: projects });
 
   } catch (error) {
     console.error('Get projects error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -38,7 +38,7 @@ export async function POST(request) {
 
     if (!name) {
       return NextResponse.json(
-        { message: 'Project name is required' },
+        { success: false, error: 'Project name is required' },
         { status: 400 }
       );
     }
@@ -54,12 +54,12 @@ export async function POST(request) {
       userId: session.user.id,
     });
 
-    return NextResponse.json(project, { status: 201 });
+    return NextResponse.json({ success: true, data: project }, { status: 201 });
 
   } catch (error) {
     console.error('Create project error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

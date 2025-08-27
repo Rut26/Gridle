@@ -14,7 +14,7 @@ export async function POST(request) {
 
     if (!joinCode) {
       return NextResponse.json(
-        { message: 'Join code is required' },
+        { success: false, error: 'Join code is required' },
         { status: 400 }
       );
     }
@@ -25,7 +25,7 @@ export async function POST(request) {
 
     if (!group) {
       return NextResponse.json(
-        { message: 'Invalid join code' },
+        { success: false, error: 'Invalid join code' },
         { status: 404 }
       );
     }
@@ -37,7 +37,7 @@ export async function POST(request) {
 
     if (isAlreadyMember) {
       return NextResponse.json(
-        { message: 'You are already a member of this group' },
+        { success: false, error: 'You are already a member of this group' },
         { status: 400 }
       );
     }
@@ -54,12 +54,12 @@ export async function POST(request) {
       .populate('createdBy', 'name email')
       .populate('members.user', 'name email');
 
-    return NextResponse.json(populatedGroup);
+    return NextResponse.json({ success: true, data: populatedGroup });
 
   } catch (error) {
     console.error('Join group error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

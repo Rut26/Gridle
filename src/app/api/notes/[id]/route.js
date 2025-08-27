@@ -18,15 +18,15 @@ export async function GET(request, { params }) {
     });
 
     if (!note) {
-      return NextResponse.json({ message: 'Note not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Note not found' }, { status: 404 });
     }
 
-    return NextResponse.json(note);
+    return NextResponse.json({ success: true, data: note });
 
   } catch (error) {
     console.error('Get note error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -50,15 +50,15 @@ export async function PUT(request, { params }) {
     );
 
     if (!note) {
-      return NextResponse.json({ message: 'Note not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Note not found' }, { status: 404 });
     }
 
-    return NextResponse.json(note);
+    return NextResponse.json({ success: true, data: note });
 
   } catch (error) {
     console.error('Update note error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -79,15 +79,15 @@ export async function DELETE(request, { params }) {
     });
 
     if (!note) {
-      return NextResponse.json({ message: 'Note not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Note not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Note deleted successfully' });
+    return NextResponse.json({ success: true, message: 'Note deleted successfully' });
 
   } catch (error) {
     console.error('Delete note error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

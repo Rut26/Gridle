@@ -150,14 +150,55 @@ const NotesPage = () => {
               title: "Success",
               description: "Note deleted successfully!",
             });
+          } else {
+            toast({
+              title: "Error",
+              description: data.error || "Failed to delete note",
+              variant: "destructive",
+            });
           }
+        })
+        .catch(error => {
+          toast({
+            title: "Error",
+            description: "Failed to delete note",
+            variant: "destructive",
+          });
         });
     }
   };
 
-  const handleSummarizeNote = (noteId) => {
-    alert(`Summarizing note ${noteId} using AI... (Feature coming soon!)`);
-    // In a real app, send note content to an AI API for summarization
+  const handleSummarizeNote = async (noteId) => {
+    const note = notes.find(n => n._id === noteId);
+    if (!note) return;
+
+    try {
+      const response = await fetch('/api/ai/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: note.content,
+          language: 'English'
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert(`Summary: ${data.data.summary}`);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to summarize note",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "AI summarization failed",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredNotes = notes.filter(note =>
@@ -182,15 +223,15 @@ const NotesPage = () => {
         ) : (
           <div className="space-y-4">
             {filteredNotes.map(note => (
-              <div key={note.id} className="p-4 border border-border rounded-lg shadow-sm bg-card cursor-pointer hover:bg-muted/50 transition-colors">
+              <div key={note._id} className="p-4 border border-border rounded-lg shadow-sm bg-card cursor-pointer hover:bg-muted/50 transition-colors">
                 <h3 className="text-lg font-medium text-foreground mb-1">{note.title}</h3>
                 <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{note.content}</p>
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>Last Modified: {note.date}</span>
+                  <span>Last Modified: {new Date(note.updatedAt).toLocaleDateString()}</span>
                   <div className="flex space-x-2">
                     <button onClick={() => openNoteModal(note)} className="text-primary hover:underline">Edit</button>
-                    <button onClick={() => handleDeleteNote(note.id)} className="text-destructive hover:underline">Delete</button>
-                    <button onClick={() => handleSummarizeNote(note.id)} className="text-primary hover:underline">Summarize (AI)</button>
+                    <button onClick={() => handleDeleteNote(note._id)} className="text-destructive hover:underline">Delete</button>
+                    <button onClick={() => handleSummarizeNote(note._id)} className="text-primary hover:underline">Summarize (AI)</button>
                   </div>
                 </div>
               </div>

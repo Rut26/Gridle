@@ -157,8 +157,85 @@ const GroupsPage = () => {
       if (notesData.success) setGroupNotes(notesData.data || []);
     } catch (error) {
       console.error('Error fetching group details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load group details",
+        variant: "destructive",
+      });
     } finally {
       setLoadingGroupDetails(false);
+    }
+  };
+
+  const handleCreateGroupTask = async (groupId) => {
+    const taskName = prompt("Enter task name:");
+    if (!taskName) return;
+    
+    const dueDate = prompt("Enter due date (YYYY-MM-DD):");
+    if (!dueDate) return;
+
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: taskName,
+          dueDate: new Date(dueDate).toISOString(),
+          priority: 'Medium',
+          category: 'Group Task',
+          groupId: groupId,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setGroupTasks(prev => [...prev, data.data]);
+        toast({
+          title: "Success",
+          description: "Group task created successfully!",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create group task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateGroupNote = async (groupId) => {
+    const noteTitle = prompt("Enter note title:");
+    if (!noteTitle) return;
+    
+    const noteContent = prompt("Enter note content:");
+    if (!noteContent) return;
+
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: noteTitle,
+          content: noteContent,
+          groupId: groupId,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setGroupNotes(prev => [...prev, data.data]);
+        toast({
+          title: "Success",
+          description: "Group note created successfully!",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create group note",
+        variant: "destructive",
+      });
     }
   };
 
@@ -285,7 +362,15 @@ const GroupsPage = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="text-lg font-semibold mb-3">Group Tasks ({groupTasks.length})</h4>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-lg font-semibold">Group Tasks ({groupTasks.length})</h4>
+                      <button
+                        onClick={() => handleCreateGroupTask(selectedGroup._id)}
+                        className="text-primary hover:underline text-sm"
+                      >
+                        + Add Task
+                      </button>
+                    </div>
                     {groupTasks.length === 0 ? (
                       <p className="text-muted-foreground">No tasks in this group yet.</p>
                     ) : (
@@ -308,7 +393,15 @@ const GroupsPage = () => {
                   </div>
                   
                   <div>
-                    <h4 className="text-lg font-semibold mb-3">Group Notes ({groupNotes.length})</h4>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-lg font-semibold">Group Notes ({groupNotes.length})</h4>
+                      <button
+                        onClick={() => handleCreateGroupNote(selectedGroup._id)}
+                        className="text-primary hover:underline text-sm"
+                      >
+                        + Add Note
+                      </button>
+                    </div>
                     {groupNotes.length === 0 ? (
                       <p className="text-muted-foreground">No notes in this group yet.</p>
                     ) : (

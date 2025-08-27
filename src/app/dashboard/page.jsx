@@ -79,7 +79,8 @@ const DashboardPage = () => {
             title: t.name,
             description: t.description,
             type: 'task',
-            id: t._id
+            id: t._id,
+            priority: t.priority
           }));
 
         // Get overdue tasks
@@ -97,7 +98,9 @@ const DashboardPage = () => {
           totalGroups: groups.length,
           chartData,
           upcomingTasks,
-          priorityTask: tasks.find(t => t.priority === 'High' && t.status === 'pending')
+          priorityTask: tasks.find(t => t.priority === 'High' && t.status === 'pending'),
+          recentTasks: tasks.slice(0, 5),
+          recentNotes: notes.slice(0, 3)
         });
       } else {
         setError('Failed to fetch dashboard data');
@@ -177,6 +180,14 @@ const DashboardPage = () => {
     } else {
       console.warn("No Task ID provided for View Task Details button.");
     }
+  };
+
+  const handleQuickAddTask = () => {
+    router.push('/tasks');
+  };
+
+  const handleQuickAddNote = () => {
+    router.push('/notes');
   };
 
   return (
@@ -357,6 +368,67 @@ const DashboardPage = () => {
         </div>
         </CardContent>
       </Card>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Tasks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dashboardData?.recentTasks?.length === 0 ? (
+              <p className="text-muted-foreground">No tasks yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {dashboardData?.recentTasks?.map(task => (
+                  <div key={task._id} className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span className="font-medium">{task.name}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                      task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={handleQuickAddTask}
+              className="w-full mt-4 p-2 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              + Add New Task
+            </button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dashboardData?.recentNotes?.length === 0 ? (
+              <p className="text-muted-foreground">No notes yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {dashboardData?.recentNotes?.map(note => (
+                  <div key={note._id} className="p-2 bg-muted rounded">
+                    <h4 className="font-medium text-sm">{note.title}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{note.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={handleQuickAddNote}
+              className="w-full mt-4 p-2 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              + Add New Note
+            </button>
+          </CardContent>
+        </Card>
+      </div>
 
       <button className="fixed bottom-6 right-6 p-4 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-accent transition-colors duration-200 z-20">
         <PlusIcon /> 

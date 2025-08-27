@@ -41,6 +41,10 @@ const TaskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
   },
+  description: {
+    type: String,
+    maxlength: [1000, 'Description cannot be more than 1000 characters'],
+  },
   aiSuggested: {
     type: Boolean,
     default: false,

@@ -23,11 +23,12 @@ export async function GET(request) {
     .sort({ createdAt: -1 });
 
     return NextResponse.json(groups);
+    return NextResponse.json({ success: true, data: groups });
 
   } catch (error) {
     console.error('Get groups error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -45,7 +46,7 @@ export async function POST(request) {
 
     if (!name) {
       return NextResponse.json(
-        { message: 'Group name is required' },
+        { success: false, error: 'Group name is required' },
         { status: 400 }
       );
     }
@@ -67,12 +68,12 @@ export async function POST(request) {
       .populate('createdBy', 'name email')
       .populate('members.user', 'name email');
 
-    return NextResponse.json(populatedGroup, { status: 201 });
+    return NextResponse.json({ success: true, data: populatedGroup }, { status: 201 });
 
   } catch (error) {
     console.error('Create group error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
